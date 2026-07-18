@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: veloct-lichess-bot
+    runtime: python
+    buildCommand: "g++ -O3 -std=c++17 -DNDEBUG -DUSE_PTHREADS -pthread veloct.cpp -o veloct -latomic && pip install -r requirements.txt"
+    startCommand: "python app.py"
+    envVars:
+      - key: LICHESS_TOKEN
+        sync: false
+        
