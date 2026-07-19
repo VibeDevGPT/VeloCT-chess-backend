@@ -1,2 +1,3 @@
-requests
+lichess-bot
 flask
+
