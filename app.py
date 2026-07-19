@@ -1,97 +1,30 @@
 import os
-import subprocess
 import threading
-import json
-import requests
+import subprocess
 from flask import Flask
 
 app = Flask(__name__)
-LICHESS_TOKEN = os.environ.get("LICHESS_TOKEN")
-ENGINE_PATH = "./veloct"
 
-def send_move(game_id, move):
-    url = f"https://lichess.org/api/bot/game/{game_id}/move/{move}"
-    headers = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
-    requests.post(url, headers=headers)
-
-def engine_think(game_id, fen, moves_string):
-    try:
-        proc = subprocess.Popen(
-            [ENGINE_PATH], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1
-        )
-        proc.stdin.write("uci\n")
-        proc.stdin.write("isready\n")
-        
-        pos_cmd = f"position fen {fen}" if fen else "position startpos"
-        if moves_string:
-            pos_cmd += f" moves {moves_string}"
-        
-        proc.stdin.write(f"{pos_cmd}\n")
-        proc.stdin.write("go movetime 1500\n")
-        proc.stdin.flush()
-
-        while True:
-            line = proc.stdout.readline()
-            if not line:
-                break
-            if line.startswith("bestmove"):
-                best_move = line.split()[1]
-                if best_move != "(none)":
-                    send_move(game_id, best_move)
-                break
-        proc.terminate()
-    except Exception as e:
-        print(f"Engine error: {e}")
-
-def stream_game(game_id):
-    url = f"https://lichess.org/api/bot/game/stream/{game_id}"
-    headers = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
-    response = requests.get(url, headers=headers, stream=True)
-    
-    fen = None
-    for line in response.iter_lines():
-        if line:
-            event = json.loads(line.decode('utf-8'))
-            if event.get("type") == "gameFull":
-                fen = event.get("initialFen")
-                state = event.get("state")
-            else:
-                state = event
-            
-            moves = state.get("moves", "")
-            moves_list = moves.split() if moves else []
-            
-            if len(moves_list) % 2 == 0:
-                threading.Thread(target=engine_think, args=(game_id, fen, moves)).start()
-
-def listen_events():
-    url = "https://lichess.org/api/stream/event"
-    headers = {"Authorization": f"Bearer {LICHESS_TOKEN}"}
-    print("Connecting to Lichess Bot Stream API...")
-    try:
-        response = requests.get(url, headers=headers, stream=True)
-        for line in response.iter_lines():
-            if line:
-                event = json.loads(line.decode('utf-8'))
-                if event.get("type") == "challenge":
-                    challenge_id = event["challenge"]["id"]
-                    requests.post(f"https://lichess.org/api/challenge/{challenge_id}/accept", headers=headers)
-                elif event.get("type") == "gameStart":
-                    game_id = event["game"]["id"]
-                    threading.Thread(target=stream_game, args=(game_id,)).start()
-    except Exception as e:
-        print(f"Stream interrupted: {e}")
-
-@app.route('/')
+@app.route("/")
 def home():
-    return "VeloCT Bot is running."
+    return "VeloCT Engine is running flawlessly 24/7!"
+
+def run_bot():
+    # Automatically give execute permissions to your x86_64 binary inside the releases folder
+    try:
+        os.chmod("./releases/my_bot_x86_64", 0o755)
+        print("Set execute permissions on binary successfully.")
+    except Exception as e:
+        print(f"Error setting permissions: {e}")
+
+    # Launch the lichess-bot driver module loop
+    subprocess.run(["python3", "-m", "lichess_bot.main"])
 
 if __name__ == "__main__":
-    if LICHESS_TOKEN:
-        threading.Thread(target=listen_events, daemon=True).start()
-    else:
-        print("Missing LICHESS_TOKEN.")
+    # Run the Lichess bridge in a background execution thread
+    threading.Thread(target=run_bot, daemon=True).start()
     
-    # Render requires binding to a port
-    port = int(os.environ.get("PORT", 10000))
+    # Read dynamic port provided by Koyeb routing mesh
+    port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+    
