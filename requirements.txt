@@ -1,3 +1,5 @@
-lichess-bot
-flask
+python-chess
+requests
+pyyaml
+urllib3
 
