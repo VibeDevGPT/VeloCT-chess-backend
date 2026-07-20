@@ -2,4 +2,5 @@ python-chess
 requests
 pyyaml
 urllib3
+flask
 
